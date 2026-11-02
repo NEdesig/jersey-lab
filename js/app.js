@@ -1,1216 +1,758 @@
-
-
 (() => {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
-  const svg = $("jerseyCanvas");
+  const $ = (selector) => document.querySelector(selector);
+  const $$ = (selector) => [...document.querySelectorAll(selector)];
 
-  const STORAGE_KEY = "hockey_jersey_lab_v1";
-
-  const presets = {
-    white: ["#f5f5f5", "#101010", "#101010", "#ffffff"],
-    black: ["#151515", "#ffffff", "#ffffff", "#151515"],
-    navy: ["#00234c", "#ffffff", "#e1ad32", "#00234c"],
-    red: ["#c51e30", "#ffffff", "#111111", "#c51e30"],
-    orange: ["#f07813", "#ffffff", "#171717", "#f07813"],
-    green: ["#176c3a", "#ffffff", "#e5c34b", "#176c3a"],
-    purple: ["#6534a5", "#ffffff", "#e5c9ff", "#6534a5"],
-    yellow: ["#f2c94c", "#111111", "#ffffff", "#f2c94c"]
-  };
-
-  const state = {
-    product: "jersey",
-    model: "game",
-    view: "front",
-    collar: "crew",
+  const defaults = {
+    main: "#f47a20",
+    secondary: "#ffffff",
+    accent: "#171717",
+    pants: "#171717",
+    socks: "#f47a20",
     pattern: "none",
-    patternScale: 30,
-    patternOpacity: 35,
-    patternColor: "#111111",
-    colors: {
-      body: "#f5f5f5",
-      sleeves: "#f5f5f5",
-      collar: "#101010",
-      cuffs: "#101010",
-      hem: "#101010",
-      stripes: "#ffffff",
-      pants: "#151515",
-      socks: "#f07813"
-    },
-    playerName: "PLAYER",
-    playerNumber: "97",
-    teamName: "YOUR TEAM",
-    font: "Arial, sans-serif",
-    fontFace: "",
+    opacity: 28,
+    team: "YOUR TEAM",
+    name: "PLAYER",
+    number: "19",
+    textColor: "#ffffff",
+    collar: "v",
+    stripes: "classic",
+    font: null,
     layers: [],
-    gallery: [],
-    selectedLayer: null,
-    nextId: 1,
-    history: []
+    selectedLayer: null
   };
 
-  let drag = null;
+  let state = structuredClone(defaults);
+  let dragging = null;
   let toastTimer = null;
 
-  const esc = (str) => String(str).replace(/[&<>"']/g, c => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[c]);
+  const NS = "http://www.w3.org/2000/svg";
 
-  function toast(message) {
-    const el = $("toast");
-    el.textContent = message;
-    el.classList.add("show");
+  function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[char]);
+  }
+
+  function escapeXML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&apos;"
+    })[char]);
+  }
+
+  function showToast(message) {
+    const toast = $("#toast");
+    toast.textContent = message;
+    toast.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove("show"), 2300);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2300);
   }
 
-  function markChanged() {
-    $("saveStatus").textContent = "● ЕСТЬ ИЗМЕНЕНИЯ";
-    $("saveStatus").style.color = "#f2b35b";
+  function hexToRgba(hex, alpha) {
+    const clean = hex.replace("#", "");
+    const full = clean.length === 3
+      ? clean.split("").map(x => x + x).join("")
+      : clean;
+    const num = parseInt(full, 16);
+    return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
   }
 
-  function snapshot() {
-    state.history.push(JSON.stringify({
-      colors: state.colors,
-      model: state.model,
-      collar: state.collar,
-      pattern: state.pattern,
-      patternScale: state.patternScale,
-      patternOpacity: state.patternOpacity,
-      patternColor: state.patternColor,
-      layers: state.layers,
-      playerName: state.playerName,
-      playerNumber: state.playerNumber,
-      teamName: state.teamName
-    }));
-
-    if (state.history.length > 30) state.history.shift();
-  }
-
-  function getClipShape() {
-    if (state.product === "jersey") {
-      return `
-        <path id="garmentClip" d="
-          M190 105
-          L240 69 Q300 39 360 69
-          L410 105 L505 149
-          L463 267 L417 245
-          L411 557 Q300 582 189 557
-          L183 245 L137 267 L95 149 Z"/>
-      `;
-    }
-
-    if (state.product === "pants") {
-      return `
-        <path id="garmentClip" d="
-          M180 75 Q300 48 420 75
-          L402 360 L350 370 L300 300
-          L250 370 L198 360 Z"/>
-      `;
-    }
-
-    return `
-      <path id="garmentClip" d="
-        M195 55 L405 55 L392 570
-        Q300 590 208 570 Z"/>
-    `;
-  }
-
-  function collarSVG() {
-    const c = state.colors.collar;
-    const inner = state.colors.body;
-
-    if (state.collar === "v") {
-      return `
-        <path d="M245 67 Q300 100 355 67 L338 117 L300 145 L262 117 Z"
-          fill="${c}" stroke="#777" stroke-width="2"/>
-        <path d="M264 82 L300 120 L336 82 L327 110 L300 136 L273 110 Z"
-          fill="${inner}"/>
-      `;
-    }
-
-    if (state.collar === "referee" || state.model === "referee") {
-      return `
-        <path d="M240 69 Q300 112 360 69 L348 115
-          Q300 154 252 115 Z"
-          fill="${c}" stroke="#555" stroke-width="2"/>
-        <path d="M255 82 Q300 118 345 82 L338 108
-          Q300 138 262 108 Z"
-          fill="${inner}"/>
-        <path d="M287 122 L313 122 L313 146 L287 146 Z"
-          fill="${c}"/>
-      `;
-    }
-
-    if (state.collar === "lace") {
-      return `
-        <path d="M240 69 Q300 108 360 69 L347 117
-          Q300 151 253 117 Z"
-          fill="${c}" stroke="#555" stroke-width="2"/>
-        <path d="M260 85 Q300 120 340 85 L333 109
-          Q300 135 267 109 Z"
-          fill="${inner}"/>
-        <path d="M291 118 L300 139 L309 118 M295 125 L305 125"
-          fill="none" stroke="#fff" stroke-width="3"/>
-      `;
-    }
-
-    return `
-      <path d="M240 69 Q300 105 360 69 L348 111
-        Q300 146 252 111 Z"
-        fill="${c}" stroke="#555" stroke-width="2"/>
-      <path d="M258 83 Q300 116 342 83 L333 104
-        Q300 131 267 104 Z"
-        fill="${inner}"/>
-    `;
-  }
-
-  function stripePattern() {
-    const scale = Number(state.patternScale);
-    const color = state.patternColor;
-    const opacity = Number(state.patternOpacity) / 100;
-
-    if (state.pattern === "none") return "";
+  function patternMarkup(id) {
+    const c = state.accent;
+    const opacity = Number(state.opacity) / 100;
 
     const patterns = {
-      stripes: `
-        <pattern id="fabricPattern" width="${scale}" height="${scale}"
-          patternUnits="userSpaceOnUse">
-          <rect width="${scale}" height="${scale}" fill="transparent"/>
-          <rect width="${scale}" height="${Math.max(3, scale * .23)}"
-            fill="${color}" opacity="${opacity}"/>
-        </pattern>
-      `,
-      vertical: `
-        <pattern id="fabricPattern" width="${scale}" height="${scale}"
-          patternUnits="userSpaceOnUse">
-          <rect width="${scale}" height="${scale}" fill="transparent"/>
-          <rect width="${Math.max(3, scale * .22)}" height="${scale}"
-            fill="${color}" opacity="${opacity}"/>
-        </pattern>
-      `,
-      diagonal: `
-        <pattern id="fabricPattern" width="${scale}" height="${scale}"
-          patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
-          <rect width="${scale}" height="${scale}" fill="transparent"/>
-          <rect width="${Math.max(3, scale * .25)}" height="${scale}"
-            fill="${color}" opacity="${opacity}"/>
-        </pattern>
-      `,
-      dots: `
-        <pattern id="fabricPattern" width="${scale}" height="${scale}"
-          patternUnits="userSpaceOnUse">
-          <circle cx="${scale / 2}" cy="${scale / 2}"
-            r="${Math.max(1, scale * .13)}"
-            fill="${color}" opacity="${opacity}"/>
-        </pattern>
-      `,
-      checker: `
-        <pattern id="fabricPattern" width="${scale}" height="${scale}"
-          patternUnits="userSpaceOnUse">
-          <rect width="${scale / 2}" height="${scale / 2}"
-            fill="${color}" opacity="${opacity}"/>
-          <rect x="${scale / 2}" y="${scale / 2}"
-            width="${scale / 2}" height="${scale / 2}"
-            fill="${color}" opacity="${opacity}"/>
-        </pattern>
-      `,
-      chevron: `
-        <pattern id="fabricPattern" width="${scale * 2}" height="${scale}"
-          patternUnits="userSpaceOnUse">
-          <path d="M0 0 L${scale} ${scale / 2} L0 ${scale} M${scale} 0 L${scale * 2} ${scale / 2} L${scale} ${scale}"
-            fill="none" stroke="${color}" stroke-width="3"
-            opacity="${opacity}"/>
-        </pattern>
-      `,
-      referee: `
-        <pattern id="fabricPattern" width="${scale * 2}" height="${scale}"
-          patternUnits="userSpaceOnUse">
-          <rect width="${scale}" height="${scale}"
-            fill="${color}" opacity="${opacity}"/>
-        </pattern>
-      `
+      none: "",
+      stripes: `<pattern id="${id}" width="18" height="18" patternUnits="userSpaceOnUse">
+        <path d="M0 0H18" stroke="${c}" stroke-width="5" opacity="${opacity}"/>
+      </pattern>`,
+      diagonal: `<pattern id="${id}" width="20" height="20" patternUnits="userSpaceOnUse">
+        <path d="M-5 20L20 -5 M5 25L25 5" stroke="${c}" stroke-width="5" opacity="${opacity}"/>
+      </pattern>`,
+      chevron: `<pattern id="${id}" width="36" height="30" patternUnits="userSpaceOnUse">
+        <path d="M-18 0L0 15L18 0 M0 15L18 30L36 15" fill="none" stroke="${c}" stroke-width="4" opacity="${opacity}"/>
+      </pattern>`,
+      grid: `<pattern id="${id}" width="18" height="18" patternUnits="userSpaceOnUse">
+        <path d="M0 0H18 M0 0V18" fill="none" stroke="${c}" stroke-width="1.5" opacity="${opacity}"/>
+      </pattern>`,
+      dots: `<pattern id="${id}" width="15" height="15" patternUnits="userSpaceOnUse">
+        <circle cx="4" cy="4" r="2.3" fill="${c}" opacity="${opacity}"/>
+      </pattern>`,
+      camo: `<pattern id="${id}" width="70" height="60" patternUnits="userSpaceOnUse">
+        <path d="M2 8Q18 -5 29 12T50 10L62 27Q44 42 30 27T5 38Z" fill="${c}" opacity="${opacity}"/>
+        <path d="M40 45Q55 25 68 45L57 60H36Z" fill="${c}" opacity="${opacity * .7}"/>
+      </pattern>`,
+      waves: `<pattern id="${id}" width="48" height="24" patternUnits="userSpaceOnUse">
+        <path d="M-24 12Q-12 -2 0 12T24 12T48 12T72 12" fill="none" stroke="${c}" stroke-width="3" opacity="${opacity}"/>
+      </pattern>`
     };
 
     return patterns[state.pattern] || "";
   }
 
-  function jerseyBase() {
-    const body = state.colors.body;
-    const sleeves = state.colors.sleeves;
-    const cuffs = state.colors.cuffs;
-    const hem = state.colors.hem;
-    const stripe = state.colors.stripes;
+  function stripeMarkup(x, y, width, height, rotate = 0) {
+    if (state.stripes === "none") return "";
 
-    const referee = state.model === "referee";
+    const c = state.accent;
+    const parts = state.stripes === "single"
+      ? `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${c}"/>`
+      : state.stripes === "double"
+        ? `<rect x="${x}" y="${y}" width="${width}" height="${height * .27}" fill="${c}"/>
+           <rect x="${x}" y="${y + height * .66}" width="${width}" height="${height * .27}" fill="${c}"/>`
+        : `<rect x="${x}" y="${y}" width="${width}" height="${height * .2}" fill="${c}"/>
+           <rect x="${x}" y="${y + height * .4}" width="${width}" height="${height * .2}" fill="${state.secondary}"/>
+           <rect x="${x}" y="${y + height * .8}" width="${width}" height="${height * .2}" fill="${c}"/>`;
 
-    return `
+    return `<g transform="rotate(${rotate} ${x + width / 2} ${y + height / 2})">${parts}</g>`;
+  }
+
+  function collarMarkup() {
+    const c = state.accent;
+    if (state.collar === "round") {
+      return `<path d="M160 78 Q200 117 240 78" fill="none" stroke="${c}" stroke-width="12"/>
+              <path d="M165 79 Q200 109 235 79" fill="none" stroke="${state.secondary}" stroke-width="4"/>`;
+    }
+
+    if (state.collar === "lace") {
+      return `<path d="M160 78 Q200 116 240 78" fill="none" stroke="${c}" stroke-width="11"/>
+              <path d="M177 87L195 111L205 111L223 87" fill="none" stroke="${state.secondary}" stroke-width="3"/>
+              <path d="M190 101L210 101M191 107L209 107" stroke="${c}" stroke-width="2.5"/>`;
+    }
+
+    return `<path d="M160 78L200 111L240 78" fill="none" stroke="${c}" stroke-width="12" stroke-linejoin="round"/>
+            <path d="M168 80L200 104L232 80" fill="none" stroke="${state.secondary}" stroke-width="3"/>`;
+  }
+
+  function layerMarkup(side) {
+    return state.layers
+      .filter(layer => layer.side === side)
+      .map(layer => {
+        const selected = layer.id === state.selectedLayer;
+        const width = layer.size * 2.6;
+        const height = width * (layer.ratio || 1);
+        const x = layer.x;
+        const y = layer.y;
+
+        return `
+          <g class="layer-image" data-layer-id="${layer.id}"
+             opacity="${layer.opacity / 100}"
+             transform="translate(${x} ${y})">
+            ${selected ? `<rect x="${-width / 2 - 4}" y="${-height / 2 - 4}" width="${width + 8}" height="${height + 8}" fill="none" stroke="#2685ff" stroke-width="1.5" stroke-dasharray="4 3"/>` : ""}
+            <image href="${escapeXML(layer.src)}"
+              x="${-width / 2}" y="${-height / 2}"
+              width="${width}" height="${height}"
+              preserveAspectRatio="xMidYMid meet"/>
+          </g>`;
+      }).join("");
+  }
+
+  function jerseySVG(side) {
+    const back = side === "back";
+    const patternId = `fabric-pattern-${side}`;
+    const main = state.main;
+    const secondary = state.secondary;
+    const accent = state.accent;
+    const font = state.font ? "UserJerseyFont" : "Arial Black, Arial, sans-serif";
+
+    const bodyPath = "M157 76 L177 65 Q200 79 223 65 L243 76 L292 101 L326 190 L293 209 L272 167 L267 340 Q200 362 133 340 L128 167 L107 209 L74 190 L108 101 Z";
+    const leftSleeve = "M157 76 L108 101 L74 190 L107 209 L128 167 L151 119 Z";
+    const rightSleeve = "M243 76 L292 101 L326 190 L293 209 L272 167 L249 119 Z";
+
+    const sleeveStripes = state.stripes === "none" ? "" : `
+      <path d="M84 166L117 180L110 196L78 182Z" fill="${accent}"/>
+      <path d="M283 180L316 166L322 182L290 196Z" fill="${accent}"/>
+      ${state.stripes === "double" ? `
+        <path d="M90 147L124 160L119 170L85 157Z" fill="${secondary}"/>
+        <path d="M277 160L310 147L315 157L282 170Z" fill="${secondary}"/>` : ""}
+      ${state.stripes === "classic" ? `
+        <path d="M82 176L115 190" stroke="${secondary}" stroke-width="5"/>
+        <path d="M285 190L318 176" stroke="${secondary}" stroke-width="5"/>` : ""}
+    `;
+
+    const numberMarkup = back
+      ? `<text x="200" y="236" text-anchor="middle" font-size="88" font-family="${font}" font-weight="900" fill="${state.textColor}" stroke="${hexToRgba(accent, .5)}" stroke-width="1.5" paint-order="stroke">${escapeXML(state.number)}</text>
+         <text x="200" y="135" text-anchor="middle" font-size="19" font-family="${font}" font-weight="900" letter-spacing="2" fill="${state.textColor}">${escapeXML(state.name.toUpperCase())}</text>`
+      : `<text x="200" y="261" text-anchor="middle" font-size="39" font-family="${font}" font-weight="900" fill="${state.textColor}" stroke="${hexToRgba(accent, .35)}" stroke-width="1" paint-order="stroke">${escapeXML(state.number)}</text>`;
+
+    const jersey = `
+    <svg class="jersey-svg" xmlns="${NS}" viewBox="0 0 400 390" role="img" aria-label="${back ? "Джерси сзади" : "Джерси спереди"}">
       <defs>
-        <clipPath id="garmentClip">
-          ${getClipShape()}
-        </clipPath>
-        ${stripePattern()}
+        <linearGradient id="body-shade-${side}" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" stop-opacity=".27"/>
+          <stop offset=".38" stop-color="#ffffff" stop-opacity="0"/>
+          <stop offset="1" stop-color="#000000" stop-opacity=".17"/>
+        </linearGradient>
+        <linearGradient id="sleeve-shade-${side}" x1="0" x2="1">
+          <stop offset="0" stop-color="#000000" stop-opacity=".12"/>
+          <stop offset=".45" stop-color="#ffffff" stop-opacity=".2"/>
+          <stop offset="1" stop-color="#000000" stop-opacity=".13"/>
+        </linearGradient>
+        <filter id="soft-shadow-${side}" x="-30%" y="-30%" width="160%" height="170%">
+          <feGaussianBlur stdDeviation="7"/>
+        </filter>
+        ${patternMarkup(patternId)}
       </defs>
 
-      <g id="garment">
-        <path d="
-          M190 105 L240 69 Q300 39 360 69
-          L410 105 L505 149 L463 267
-          L417 245 L411 557 Q300 582 189 557
-          L183 245 L137 267 L95 149 Z"
-          fill="${body}" stroke="#777" stroke-width="3"/>
+      <ellipse cx="200" cy="351" rx="112" ry="12" fill="#000" opacity=".12" filter="url(#soft-shadow-${side})"/>
 
-        <path d="M190 105 L95 149 L137 267 L183 245 L229 136 Z"
-          fill="${sleeves}" stroke="#777" stroke-width="2"/>
-        <path d="M410 105 L505 149 L463 267 L417 245 L371 136 Z"
-          fill="${sleeves}" stroke="#777" stroke-width="2"/>
+      <!-- Main fabric -->
+      <path class="fabric" d="${bodyPath}" fill="${main}"/>
+      <path d="${bodyPath}" fill="url(#body-shade-${side})"/>
+      <path d="${bodyPath}" fill="url(#${patternId})"/>
 
-        <g clip-path="url(#garmentClip)">
-          ${referee ? `
-            <rect x="85" y="35" width="430" height="550"
-              fill="url(#fabricPattern)"/>
-            <rect x="85" y="35" width="430" height="550"
-              fill="${state.pattern === "none" ? "transparent" : "url(#fabricPattern)"}"/>
-          ` : state.pattern !== "none" ? `
-            <rect x="85" y="35" width="430" height="550"
-              fill="url(#fabricPattern)"/>
-          ` : ""}
-          ${referee ? `
-            ${[0,1,2,3,4,5,6,7,8,9,10].map(i =>
-              `<rect x="${105 + i * 40}" y="35" width="20" height="550" fill="#fff" opacity=".95"/>`
-            ).join("")}
-          ` : ""}
-          <path d="M85 430 H515 V458 H85 Z" fill="${stripe}"/>
-          <path d="M85 450 H515 V458 H85 Z" fill="${hem}"/>
-          <path d="M85 235 H515 V258 H85 Z" fill="${stripe}"/>
-          <path d="M85 258 H515 V267 H85 Z" fill="${cuffs}"/>
-          <path d="M85 515 H515 V532 H85 Z" fill="${stripe}"/>
-          <path d="M85 532 H515 V547 H85 Z" fill="${hem}"/>
-          ${referee ? `
-            <path d="M115 190 H180 V230 H115 Z" fill="#f18a21"/>
-            <path d="M420 190 H485 V230 H420 Z" fill="#f18a21"/>
-          ` : ""}
-        </g>
+      <!-- Sleeves -->
+      <path class="fabric" d="${leftSleeve}" fill="${main}"/>
+      <path class="fabric" d="${rightSleeve}" fill="${main}"/>
+      <path d="${leftSleeve}" fill="url(#sleeve-shade-${side})"/>
+      <path d="${rightSleeve}" fill="url(#sleeve-shade-${side})"/>
 
-        <path d="M95 149 L137 267 L183 245"
-          fill="none" stroke="#777" stroke-width="3"/>
-        <path d="M505 149 L463 267 L417 245"
-          fill="none" stroke="#777" stroke-width="3"/>
-        <path d="M190 105 Q300 145 410 105"
-          fill="none" stroke="#777" stroke-width="2"/>
-        <path d="M189 557 Q300 580 411 557"
-          fill="none" stroke="${hem}" stroke-width="9"/>
-        <path d="M95 149 L137 267" stroke="#aaa" stroke-width="2"/>
-        <path d="M505 149 L463 267" stroke="#aaa" stroke-width="2"/>
+      <!-- Cuffs -->
+      <path d="M74 190L107 209L99 228L66 207Z" fill="${accent}"/>
+      <path d="M293 209L326 190L334 207L301 228Z" fill="${accent}"/>
+      ${sleeveStripes}
 
-        ${collarSVG()}
+      <!-- Waist stripes -->
+      ${state.stripes === "none" ? "" : `
+        <path d="M132 319Q200 340 268 319L267 340Q200 361 133 340Z" fill="${accent}"/>
+        ${state.stripes === "classic" ? `<path d="M132 328Q200 349 268 328L268 334Q200 355 132 334Z" fill="${secondary}"/>` : ""}
+        ${state.stripes === "double" ? `<path d="M132 326Q200 347 268 326L268 330Q200 351 132 330Z" fill="${secondary}"/>` : ""}
+      `}
 
-        ${state.view === "front" ? `
-          <g id="playerInfo">
-            ${!referee ? `
-              <text x="300" y="360" text-anchor="middle"
-                font-family="${esc(state.font)}"
-                font-size="105" font-weight="900"
-                fill="#fff" stroke="#111" stroke-width="5"
-                paint-order="stroke">${esc(state.playerNumber)}</text>
-              <text x="300" y="305" text-anchor="middle"
-                font-family="${esc(state.font)}"
-                font-size="25" font-weight="900"
-                fill="#fff" stroke="#111" stroke-width="1.5"
-                paint-order="stroke">${esc(state.teamName)}</text>
-            ` : `
-              <text x="300" y="350" text-anchor="middle"
-                font-size="36" font-weight="900"
-                fill="#fff" stroke="#111" stroke-width="2"
-                paint-order="stroke">REFEREE</text>
-            `}
-          </g>
-        ` : `
-          <text x="300" y="230" text-anchor="middle"
-            font-family="${esc(state.font)}"
-            font-size="32" font-weight="900"
-            fill="#fff" stroke="#111" stroke-width="2"
-            paint-order="stroke">${esc(state.playerName)}</text>
-          <text x="300" y="370" text-anchor="middle"
-            font-family="${esc(state.font)}"
-            font-size="125" font-weight="900"
-            fill="#fff" stroke="#111" stroke-width="6"
-            paint-order="stroke">${esc(state.playerNumber)}</text>
-        `}
-        ${state.view === "front" ? `
-          <path d="M155 190 L170 190 L180 205 L170 220 L155 220 Z"
-            fill="${cuffs}" opacity=".8"/>
-          <path d="M445 190 L430 190 L420 205 L430 220 L445 220 Z"
-            fill="${cuffs}" opacity=".8"/>
-        ` : ""}
-      </g>
-    `;
+      <!-- Seams -->
+      <path class="seam" d="M157 77L137 125L133 317"/>
+      <path class="seam" d="M243 77L263 125L267 317"/>
+      <path class="seam" d="M108 102L128 167"/>
+      <path class="seam" d="M292 102L272 167"/>
+      <path class="seam" d="M145 90Q200 120 255 90"/>
+
+      <!-- Fabric folds -->
+      <path class="fold" d="M151 142Q164 164 151 191"/>
+      <path class="fold" d="M249 142Q236 164 249 191"/>
+      <path class="fold" d="M166 279Q177 292 170 309"/>
+      <path class="fold" d="M231 280Q222 297 230 311"/>
+      <path class="dark-fold" d="M117 116L96 175"/>
+      <path class="dark-fold" d="M283 116L304 175"/>
+      <path class="dark-fold" d="M145 245Q155 260 145 278"/>
+      <path class="dark-fold" d="M255 245Q245 260 255 278"/>
+
+      <!-- Collar -->
+      ${collarMarkup()}
+
+      <!-- Front/back details -->
+      ${numberMarkup}
+
+      ${!back ? `
+        <path d="M174 163L226 163L220 174L180 174Z" fill="${secondary}" opacity=".8"/>
+        <circle cx="200" cy="187" r="3" fill="${accent}"/>
+      ` : `
+        <text x="200" y="325" text-anchor="middle" font-size="9" font-weight="800" letter-spacing="2" fill="${state.textColor}" opacity=".8">HOCKEY</text>
+      `}
+
+      <!-- Custom logo layers -->
+      ${layerMarkup(side)}
+
+      <!-- Outline -->
+      <path d="${bodyPath}" fill="none" stroke="${hexToRgba("#000000", .2)}" stroke-width="1.4"/>
+    </svg>`;
+
+    return jersey;
   }
 
-  function pantsBase() {
-    const c = state.colors.pants;
+  function pantsSVG() {
+    const c = state.pants;
     return `
-      <g id="garment">
-        <path d="M180 100 Q300 60 420 100
-          L400 390 L340 400 L300 320
-          L260 400 L200 390 Z"
-          fill="${c}" stroke="#777" stroke-width="4"/>
-        <path d="M180 100 Q300 60 420 100 L415 155
-          Q300 180 185 155 Z"
-          fill="#24242a" stroke="#777" stroke-width="3"/>
-        <path d="M245 170 L220 385 M355 170 L380 385"
-          stroke="${state.colors.stripes}" stroke-width="14"/>
-        <path d="M260 400 L300 320 L340 400"
-          fill="none" stroke="#444" stroke-width="3"/>
-        <path d="M190 150 L410 150" stroke="#111" stroke-width="4"/>
-      </g>
-    `;
+    <svg xmlns="${NS}" viewBox="0 0 220 160">
+      <defs>
+        <linearGradient id="pants-shade" x1="0" x2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity=".12"/>
+          <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+          <stop offset="1" stop-color="#000" stop-opacity=".2"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="110" cy="147" rx="74" ry="7" fill="#000" opacity=".1"/>
+      <path d="M62 20Q110 7 158 20L166 75L149 136L116 136L110 75L104 136L71 136L54 75Z" fill="${c}" stroke="#000" stroke-opacity=".2" stroke-width="2"/>
+      <path d="M62 20Q110 7 158 20L166 75L149 136L116 136L110 75L104 136L71 136L54 75Z" fill="url(#pants-shade)"/>
+      <path d="M64 26Q110 39 156 26" fill="none" stroke="${state.accent}" stroke-width="7"/>
+      <path d="M65 31Q110 44 155 31" fill="none" stroke="${state.secondary}" stroke-width="2"/>
+      <path d="M110 44L110 76" stroke="#fff" stroke-opacity=".18" stroke-width="2"/>
+      <path d="M73 85L99 92M137 92L158 85" stroke="#fff" stroke-opacity=".16" stroke-width="3"/>
+      <path d="M75 135L104 135M116 135L148 135" stroke="${state.accent}" stroke-width="4"/>
+      <path d="M72 46L78 88M148 46L142 88" stroke="#fff" stroke-opacity=".12" stroke-width="2"/>
+    </svg>`;
   }
 
-  function socksBase() {
-    const c = state.colors.socks;
+  function socksSVG() {
+    const c = state.socks;
     return `
-      <g id="garment">
-        <path d="M175 75 L285 75 L278 560
-          Q230 585 190 560 Z"
-          fill="${c}" stroke="#777" stroke-width="3"/>
-        <path d="M315 75 L425 75 L410 560
-          Q370 585 322 560 Z"
-          fill="${c}" stroke="#777" stroke-width="3"/>
-        <path d="M178 410 L282 410 L281 448 L176 448 Z"
-          fill="${state.colors.stripes}"/>
-        <path d="M320 410 L422 410 L420 448 L319 448 Z"
-          fill="${state.colors.stripes}"/>
-        <path d="M178 448 L282 448 L281 465 L176 465 Z"
-          fill="${state.colors.cuffs}"/>
-        <path d="M320 448 L422 448 L420 465 L319 465 Z"
-          fill="${state.colors.cuffs}"/>
-        <path d="M175 550 L280 550 L278 565 Q230 585 190 565 Z"
-          fill="${state.colors.hem}"/>
-        <path d="M320 550 L415 550 L410 565 Q370 585 322 565 Z"
-          fill="${state.colors.hem}"/>
-      </g>
-    `;
-  }
-
-  function elementSVG(layer) {
-    const x = layer.x;
-    const y = layer.y;
-    const rotation = layer.rotation || 0;
-    const scale = layer.scale || 1;
-    const color = layer.color || "#ffffff";
-    const transform = `translate(${x} ${y}) rotate(${rotation}) scale(${scale})`;
-
-    if (layer.type === "image") {
-      return `
-        <g class="design-layer" data-id="${layer.id}"
-          transform="${transform}">
-          <image href="${layer.src}" x="-65" y="-45"
-            width="130" height="90"
-            preserveAspectRatio="xMidYMid meet"/>
-          <rect x="-65" y="-45" width="130" height="90"
-            fill="transparent" stroke="${state.selectedLayer === layer.id ? "#a99aff" : "transparent"}"
-            stroke-width="2"/>
-        </g>
-      `;
-    }
-
-    if (layer.type === "text") {
-      return `
-        <g class="design-layer" data-id="${layer.id}"
-          transform="${transform}">
-          <text x="0" y="0" text-anchor="middle"
-            font-family="${esc(layer.font || state.font)}"
-            font-size="${layer.size || 42}"
-            font-weight="900"
-            fill="${color}" stroke="${layer.outline || "#111"}"
-            stroke-width="1.5" paint-order="stroke">
-            ${esc(layer.text)}
-          </text>
-        </g>
-      `;
-    }
-
-    if (layer.type === "pattern") {
-      const p = layer.pattern;
-      const s = layer.size || 30;
-      const opacity = (layer.opacity ?? 35) / 100;
-      let shape = "";
-
-      if (p === "stripes" || p === "referee") {
-        shape = `<path d="M-150 -150 H-130 V150 H-150 Z M-80 -150 H-60 V150 H-80 Z M-10 -150 H10 V150 H-10 Z M60 -150 H80 V150 H60 Z M130 -150 H150 V150 H130 Z" fill="${color}"/>`;
-      } else if (p === "dots") {
-        shape = `<pattern id="layerPattern${layer.id}" width="${s}" height="${s}" patternUnits="userSpaceOnUse"><circle cx="${s/2}" cy="${s/2}" r="${s/6}" fill="${color}"/></pattern><rect x="-150" y="-150" width="300" height="300" fill="url(#layerPattern${layer.id})"/>`;
-      } else if (p === "chevron") {
-        shape = `<path d="M-140 -120 L0 0 L-140 120 M0 -120 L140 0 L0 120" fill="none" stroke="${color}" stroke-width="10"/>`;
-      } else if (p === "diagonal") {
-        shape = `<path d="M-150 -150 L-130 -150 L150 130 L150 150 Z M-150 -70 L-130 -70 L70 150 L50 150 Z M-150 10 L-130 10 L-10 150 L-30 150 Z" fill="${color}"/>`;
-      } else if (p === "checker") {
-        shape = `<pattern id="layerPattern${layer.id}" width="${s}" height="${s}" patternUnits="userSpaceOnUse"><rect width="${s/2}" height="${s/2}" fill="${color}"/><rect x="${s/2}" y="${s/2}" width="${s/2}" height="${s/2}" fill="${color}"/></pattern><rect x="-150" y="-150" width="300" height="300" fill="url(#layerPattern${layer.id})"/>`;
-      }
-
-      return `
-        <g class="design-layer" data-id="${layer.id}"
-          transform="${transform}" opacity="${opacity}">
-          ${shape}
-        </g>
-      `;
-    }
-
-    let shape = "";
-
-    if (layer.shape === "circle") {
-      shape = `<circle cx="0" cy="0" r="40" fill="${color}"/>`;
-    } else if (layer.shape === "star") {
-      shape = `<path d="M0 -48 L13 -15 L48 -15 L20 8 L30 43 L0 23 L-30 43 L-20 8 L-48 -15 L-13 -15 Z" fill="${color}"/>`;
-    } else if (layer.shape === "shield") {
-      shape = `<path d="M-40 -45 H40 V15 Q30 40 0 55 Q-30 40 -40 15 Z" fill="${color}" stroke="#111" stroke-width="3"/>`;
-    } else if (layer.shape === "stripe") {
-      shape = `<rect x="-100" y="-12" width="200" height="24" rx="4" fill="${color}"/>`;
-    } else if (layer.shape === "line") {
-      shape = `<path d="M-100 0 H100" stroke="${color}" stroke-width="9"/>`;
-    } else if (layer.shape === "armband") {
-      shape = `<rect x="-55" y="-20" width="110" height="40" rx="5" fill="#f18a21" stroke="#222" stroke-width="3"/>`;
-    } else if (layer.shape === "pocket") {
-      shape = `<path d="M-35 -35 H35 V30 L0 45 L-35 30 Z" fill="${color}" stroke="#222" stroke-width="4"/>`;
-    } else if (layer.shape === "shoulder") {
-      shape = `<path d="M-100 -20 H100 V-5 H-100 Z M-100 10 H100 V25 H-100 Z" fill="${color}"/>`;
-    }
-
-    return `
-      <g class="design-layer" data-id="${layer.id}"
-        transform="${transform}">
-        ${shape}
-        <circle cx="0" cy="0" r="2" fill="transparent"/>
-      </g>
-    `;
+    <svg xmlns="${NS}" viewBox="0 0 220 160">
+      <ellipse cx="110" cy="148" rx="73" ry="6" fill="#000" opacity=".1"/>
+      <path d="M54 13L99 13L99 98L91 139L51 139L57 98Z" fill="${c}" stroke="#000" stroke-opacity=".17" stroke-width="1.5"/>
+      <path d="M121 13L166 13L163 98L169 139L129 139L121 98Z" fill="${c}" stroke="#000" stroke-opacity=".17" stroke-width="1.5"/>
+      <path d="M54 13L99 13L99 30L55 30Z" fill="${state.accent}"/>
+      <path d="M121 13L166 13L165 30L121 30Z" fill="${state.accent}"/>
+      <path d="M54 38L98 38L97 46L54 46Z" fill="${state.secondary}"/>
+      <path d="M121 38L165 38L165 46L121 46Z" fill="${state.secondary}"/>
+      <path d="M54 13L99 13L99 139L51 139L57 98Z" fill="#fff" opacity=".06"/>
+      <path d="M121 13L166 13L169 139L129 139L121 98Z" fill="#000" opacity=".06"/>
+      <path d="M65 56L91 56M132 56L158 56" stroke="#fff" stroke-opacity=".16" stroke-width="2"/>
+    </svg>`;
   }
 
   function render() {
-    const base = state.product === "jersey"
-      ? jerseyBase()
-      : state.product === "pants"
-        ? pantsBase()
-        : socksBase();
-
-    const layers = state.layers
-      .filter(layer => !layer.product || layer.product === state.product)
-      .map(elementSVG).join("");
-
-    svg.innerHTML = `
-      <rect width="600" height="680" fill="transparent"/>
-      ${base}
-      <g id="designLayers">${layers}</g>
-      <g id="selectionOutline"></g>
-    `;
-
-    $("garmentLabel").textContent =
-      `${state.product.toUpperCase()} / ${state.view.toUpperCase()}`;
-
-    $("layerList").innerHTML = state.layers.length
-      ? state.layers.map(layer => `
-        <div class="layer-item ${state.selectedLayer === layer.id ? "active" : ""}"
-          data-layer="${layer.id}">
-          <span>${layer.type === "image" ? "▧" : layer.type === "text" ? "T" : "◆"}</span>
-          <span>${esc(layer.name || layer.text || layer.shape || "Элемент")}</span>
-          <small>${layer.product === "all" ? "Все" : layer.product || state.product}</small>
-        </div>
-      `).join("")
-      : `<div class="empty-state">Пока нет дополнительных слоёв</div>`;
-
+    $("#frontJersey").innerHTML = jerseySVG("front");
+    $("#backJersey").innerHTML = jerseySVG("back");
+    $("#pantsPreview").innerHTML = pantsSVG();
+    $("#socksPreview").innerHTML = socksSVG();
+    $("#teamPreview").textContent = state.team.trim() || "YOUR TEAM";
+    updateLayerList();
     updateLayerControls();
-    markChanged();
+  }
+
+  function updateLayerList() {
+    const list = $("#layerList");
+
+    if (!state.layers.length) {
+      list.innerHTML = '<div class="empty-layers">Пока нет загруженных слоёв</div>';
+      return;
+    }
+
+    list.innerHTML = state.layers.map(layer => `
+      <div class="layer-row ${layer.id === state.selectedLayer ? "selected" : ""}" data-id="${layer.id}">
+        <img src="${escapeHTML(layer.src)}" alt="">
+        <span>${escapeHTML(layer.name)} · ${layer.side === "front" ? "Спереди" : "Сзади"}</span>
+      </div>
+    `).join("");
+
+    $$(".layer-row").forEach(row => {
+      row.addEventListener("click", () => {
+        state.selectedLayer = row.dataset.id;
+        render();
+      });
+    });
   }
 
   function updateLayerControls() {
-    const layer = state.layers.find(l => l.id === state.selectedLayer);
-    if (!layer) return;
+    const layer = state.layers.find(item => item.id === state.selectedLayer);
+    $("#layerSize").disabled = !layer;
+    $("#layerOpacity").disabled = !layer;
 
-    $("layerX").value = Math.round(layer.x);
-    $("layerY").value = Math.round(layer.y);
-    $("layerSize").value = Math.round((layer.scale || 1) * 100);
-    $("layerRotation").value = layer.rotation || 0;
-  }
-
-  function addLayer(layer) {
-    snapshot();
-    layer.id = state.nextId++;
-    layer.x = layer.x ?? 300;
-    layer.y = layer.y ?? 330;
-    layer.scale = layer.scale ?? 1;
-    layer.rotation = layer.rotation ?? 0;
-    layer.product = layer.product || state.product;
-    state.layers.push(layer);
-    state.selectedLayer = layer.id;
-    render();
-    openTab("layers");
-  }
-
-  function openTab(name) {
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.classList.toggle("active", tab.dataset.tab === name);
-    });
-    document.querySelectorAll(".tab-content").forEach(tab => {
-      tab.classList.toggle("active", tab.id === `tab-${name}`);
-    });
-  }
-
-  function setProduct(product) {
-    state.product = product;
-    document.querySelectorAll(".product").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.product === product);
-    });
-    state.selectedLayer = null;
-    render();
-  }
-
-  function updateColorInputs(color) {
-    const hex = color.replace("#", "");
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-
-    $("red").value = r;
-    $("green").value = g;
-    $("blue").value = b;
-    $("redValue").textContent = r;
-    $("greenValue").textContent = g;
-    $("blueValue").textContent = b;
-    $("hexColor").value = color.toUpperCase();
-    $("colorPreview").style.background = color;
-  }
-
-  function rgbToHex(r, g, b) {
-    return "#" + [r, g, b].map(v =>
-      Number(v).toString(16).padStart(2, "0")
-    ).join("").toUpperCase();
-  }
-
-  function changeColor() {
-    const color = rgbToHex(
-      $("red").value,
-      $("green").value,
-      $("blue").value
-    );
-    updateColorInputs(color);
-  }
-
-  function applyColor() {
-    const part = $("colorPart").value;
-    let color = $("hexColor").value.trim();
-
-    if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
-      toast("Неверный HEX-код");
-      return;
-    }
-
-    snapshot();
-    state.colors[part] = color;
-    render();
-    toast("Цвет применён");
-  }
-
-  function applyPreset(name) {
-    const colors = presets[name];
-    if (!colors) return;
-
-    snapshot();
-    state.colors.body = colors[0];
-    state.colors.sleeves = colors[0];
-    state.colors.collar = colors[1];
-    state.colors.cuffs = colors[1];
-    state.colors.hem = colors[1];
-    state.colors.stripes = colors[2];
-    state.colors.pants = colors[3];
-    state.colors.socks = colors[0];
-
-    render();
-    updateColorInputs(state.colors.body);
-    toast("Цветовая схема применена");
-  }
-
-  function applyPattern() {
-    const p = state.pattern;
-    if (p === "none") {
-      toast("Выбери узор");
-      return;
-    }
-
-    addLayer({
-      type: "pattern",
-      name: "Паттерн: " + p,
-      pattern: p,
-      size: Number(state.patternScale),
-      opacity: Number(state.patternOpacity),
-      color: state.patternColor,
-      product: state.product
-    });
-
-    toast("Узор добавлен");
-  }
-
-  function addText() {
-    const text = $("customText").value.trim();
-    if (!text) {
-      toast("Сначала введи текст");
-      return;
-    }
-
-    addLayer({
-      type: "text",
-      name: "Текст: " + text,
-      text,
-      size: Number($("textSize").value),
-      font: $("fontSelect").value,
-      color: "#ffffff",
-      product: state.product
-    });
-
-    $("customText").value = "";
-    toast("Текст добавлен");
-  }
-
-  function addDetail(shape) {
-    const names = {
-      stripe: "Полоса",
-      shoulder: "Плечевые полосы",
-      armband: "Оранжевая повязка",
-      pocket: "Карман",
-      star: "Звезда",
-      circle: "Круг",
-      shield: "Щит",
-      line: "Линия"
-    };
-
-    addLayer({
-      type: "shape",
-      shape,
-      name: names[shape] || "Деталь",
-      color: shape === "armband" ? "#f18a21" : "#ffffff",
-      product: state.product
-    });
-
-    toast("Деталь добавлена");
-  }
-
-  function readImage(file, callback) {
-    if (!file || !file.type.startsWith("image/")) {
-      toast("Выбери изображение");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast("Максимальный размер файла — 5 МБ");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => callback(reader.result);
-    reader.onerror = () => toast("Не удалось прочитать файл");
-    reader.readAsDataURL(file);
-  }
-
-  function addImage(src, name) {
-    addLayer({
-      type: "image",
-      src,
-      name: name || "Логотип",
-      product: state.product
-    });
-    toast("Изображение добавлено");
-  }
-
-  function selectLayer(id) {
-    state.selectedLayer = Number(id);
-    render();
-  }
-
-  function deleteSelected() {
-    if (!state.selectedLayer) {
-      toast("Выбери слой");
-      return;
-    }
-
-    snapshot();
-    state.layers = state.layers.filter(l => l.id !== state.selectedLayer);
-    state.selectedLayer = null;
-    render();
-    toast("Слой удалён");
-  }
-
-  function changeLayer(property, value) {
-    const layer = state.layers.find(l => l.id === state.selectedLayer);
-    if (!layer) return;
-
-    layer[property] = property === "scale"
-      ? Number(value) / 100
-      : Number(value);
-
-    render();
-  }
-
-  function moveLayer(direction) {
-    const index = state.layers.findIndex(l => l.id === state.selectedLayer);
-    if (index < 0) return;
-
-    const target = index + direction;
-    if (target < 0 || target >= state.layers.length) return;
-
-    snapshot();
-    const [layer] = state.layers.splice(index, 1);
-    state.layers.splice(target, 0, layer);
-    render();
-  }
-
-  function saveProject() {
-    try {
-      const data = {
-        ...state,
-        history: [],
-        fontFace: ""
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      $("saveStatus").textContent = "● СОХРАНЕНО";
-      $("saveStatus").style.color = "#75d9a2";
-      toast("Проект сохранён на устройстве");
-    } catch (error) {
-      toast("Не удалось сохранить. Возможно, слишком большие изображения");
+    if (layer) {
+      $("#layerSize").value = layer.size;
+      $("#layerOpacity").value = layer.opacity;
     }
   }
 
-  function loadProject() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-
-      const data = JSON.parse(raw);
-      Object.assign(state, data);
-      state.history = [];
-      state.selectedLayer = null;
+  function updateColor(key, selector) {
+    $(selector).addEventListener("input", event => {
+      state[key] = event.target.value;
       render();
-    } catch (error) {
-      console.warn("Не удалось загрузить проект", error);
-    }
-  }
-
-  function undo() {
-    const previous = state.history.pop();
-    if (!previous) {
-      toast("Нет действий для отмены");
-      return;
-    }
-
-    Object.assign(state, JSON.parse(previous));
-    state.selectedLayer = null;
-    render();
-    toast("Последнее действие отменено");
-  }
-
-  function resetDesign() {
-    if (!confirm("Сбросить текущий дизайн?")) return;
-
-    snapshot();
-
-    state.layers = [];
-    state.selectedLayer = null;
-    state.model = "game";
-    state.collar = "crew";
-    state.pattern = "none";
-    state.colors = {
-      body: "#f5f5f5",
-      sleeves: "#f5f5f5",
-      collar: "#101010",
-      cuffs: "#101010",
-      hem: "#101010",
-      stripes: "#ffffff",
-      pants: "#151515",
-      socks: "#f07813"
-    };
-
-    render();
-    toast("Дизайн сброшен");
-  }
-
-  function saveToGallery() {
-    const layer = state.layers.find(l => l.id === state.selectedLayer);
-    if (!layer) {
-      toast("Сначала выбери элемент");
-      return;
-    }
-
-    try {
-      state.gallery.push(JSON.parse(JSON.stringify(layer)));
-      localStorage.setItem(STORAGE_KEY + "_gallery", JSON.stringify(state.gallery));
-      renderGallery();
-      toast("Добавлено в галерею");
-    } catch {
-      toast("Не удалось сохранить элемент");
-    }
-  }
-
-  function renderGallery() {
-    $("galleryList").innerHTML = state.gallery.length
-      ? state.gallery.map((item, index) => `
-        <div class="gallery-item">
-          <span>${esc(item.name || item.text || item.shape || "Элемент")}</span>
-          <button data-gallery-add="${index}">ДОБАВИТЬ</button>
-        </div>
-      `).join("")
-      : `<div class="empty-state">Галерея пока пуста</div>`;
-  }
-
-  function addGalleryItem(index) {
-    const item = state.gallery[index];
-    if (!item) return;
-
-    const copy = JSON.parse(JSON.stringify(item));
-    delete copy.id;
-    copy.x = 300;
-    copy.y = 330;
-    copy.product = state.product;
-    addLayer(copy);
-    toast("Элемент добавлен из галереи");
-  }
-
-  function exportPNG() {
-    const clone = svg.cloneNode(true);
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", "1800");
-    clone.setAttribute("height", "2040");
-
-    const xml = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([xml], {
-      type: "image/svg+xml;charset=utf-8"
     });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1800;
-      canvas.height = 2040;
-      const ctx = canvas.getContext("2d");
-
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      canvas.toBlob(png => {
-        if (!png) {
-          toast("Ошибка экспорта");
-          URL.revokeObjectURL(url);
-          return;
-        }
-
-        const link = document.createElement("a");
-        link.download =
-          `hockey-${state.product}-${state.view}.png`;
-        link.href = URL.createObjectURL(png);
-        link.click();
-
-        URL.revokeObjectURL(link.href);
-        URL.revokeObjectURL(url);
-        toast("PNG экспортирован");
-      }, "image/png");
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      toast("Не удалось экспортировать изображение");
-    };
-
-    img.src = url;
   }
 
-  function pointerPosition(event) {
-    const point = svg.createSVGPoint();
-    point.x = event.clientX;
-    point.y = event.clientY;
-    const matrix = svg.getScreenCTM();
-    if (!matrix) return null;
-    const p = point.matrixTransform(matrix.inverse());
-    return { x: p.x, y: p.y };
-  }
+  updateColor("main", "#mainColor");
+  updateColor("secondary", "#secondaryColor");
+  updateColor("accent", "#accentColor");
+  updateColor("pants", "#pantsColor");
+  updateColor("socks", "#socksColor");
+  updateColor("textColor", "#textColor");
 
-  svg.addEventListener("pointerdown", event => {
-    const group = event.target.closest(".design-layer");
-    if (!group) return;
-
-    const id = Number(group.dataset.id);
-    const layer = state.layers.find(l => l.id === id);
-    if (!layer) return;
-
-    state.selectedLayer = id;
-    const pos = pointerPosition(event);
-    if (!pos) return;
-
-    drag = {
-      id,
-      offsetX: pos.x - layer.x,
-      offsetY: pos.y - layer.y
-    };
-
-    svg.setPointerCapture(event.pointerId);
+  $("#patternOpacity").addEventListener("input", event => {
+    state.opacity = Number(event.target.value);
     render();
   });
 
-  svg.addEventListener("pointermove", event => {
-    if (!drag) return;
-
-    const layer = state.layers.find(l => l.id === drag.id);
-    const pos = pointerPosition(event);
-    if (!layer || !pos) return;
-
-    layer.x = Math.max(0, Math.min(600, pos.x - drag.offsetX));
-    layer.y = Math.max(0, Math.min(680, pos.y - drag.offsetY));
-
-    const group = svg.querySelector(`[data-id="${drag.id}"]`);
-    if (group) {
-      group.setAttribute(
-        "transform",
-        `translate(${layer.x} ${layer.y}) rotate(${layer.rotation || 0}) scale(${layer.scale || 1})`
-      );
-    }
+  $("#teamName").addEventListener("input", event => {
+    state.team = event.target.value;
+    $("#teamPreview").textContent = state.team || "YOUR TEAM";
   });
 
-  function finishDrag() {
-    if (!drag) return;
-    drag = null;
+  $("#playerName").addEventListener("input", event => {
+    state.name = event.target.value;
     render();
-  }
-
-  svg.addEventListener("pointerup", finishDrag);
-  svg.addEventListener("pointercancel", finishDrag);
-  svg.addEventListener("lostpointercapture", finishDrag);
-
-  document.querySelectorAll(".tab").forEach(btn => {
-    btn.addEventListener("click", () => openTab(btn.dataset.tab));
   });
 
-  document.querySelectorAll(".product").forEach(btn => {
-    btn.addEventListener("click", () => setProduct(btn.dataset.product));
+  $("#playerNumber").addEventListener("input", event => {
+    state.number = event.target.value.slice(0, 2);
+    render();
   });
 
-  document.querySelectorAll("[data-view]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      state.view = btn.dataset.view;
-      document.querySelectorAll("[data-view]").forEach(b =>
-        b.classList.toggle("active", b === btn)
-      );
+  $("#collarStyle").addEventListener("change", event => {
+    state.collar = event.target.value;
+    render();
+  });
+
+  $("#stripeStyle").addEventListener("change", event => {
+    state.stripes = event.target.value;
+    render();
+  });
+
+  $$(".palette").forEach(button => {
+    button.addEventListener("click", () => {
+      const [main, secondary, accent] = button.dataset.colors.split(",");
+      state.main = main;
+      state.secondary = secondary;
+      state.accent = accent;
+      $("#mainColor").value = main;
+      $("#secondaryColor").value = secondary;
+      $("#accentColor").value = accent;
       render();
     });
   });
 
-  document.querySelectorAll("[data-model]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      snapshot();
-      state.model = btn.dataset.model;
-      if (state.model === "referee") {
-        state.collar = "referee";
-        state.pattern = "referee";
-        state.colors.body = "#ffffff";
-        state.colors.sleeves = "#ffffff";
-        state.colors.stripes = "#111111";
-        state.colors.collar = "#111111";
-        state.colors.cuffs = "#111111";
-        state.colors.hem = "#111111";
-      }
-      document.querySelectorAll("[data-model]").forEach(b =>
-        b.classList.toggle("selected", b === btn)
-      );
-      render();
-      toast("Модель изменена");
-    });
-  });
-
-  document.querySelectorAll("[data-collar]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      snapshot();
-      state.collar = btn.dataset.collar;
-      document.querySelectorAll("[data-collar]").forEach(b =>
-        b.classList.toggle("selected", b === btn)
-      );
+  $$(".pattern-option").forEach(button => {
+    button.addEventListener("click", () => {
+      $$(".pattern-option").forEach(item => item.classList.remove("selected"));
+      button.classList.add("selected");
+      state.pattern = button.dataset.pattern;
       render();
     });
   });
 
-  document.querySelectorAll("[data-preset]").forEach(btn => {
-    btn.addEventListener("click", () => applyPreset(btn.dataset.preset));
-  });
+  $$(".tab").forEach(button => {
+    button.addEventListener("click", () => {
+      $$(".tab").forEach(item => item.classList.remove("active"));
+      $$(".tab-content").forEach(item => item.classList.remove("active"));
 
-  document.querySelectorAll("[data-pattern]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      state.pattern = btn.dataset.pattern;
-      document.querySelectorAll("[data-pattern]").forEach(b =>
-        b.classList.toggle("selected", b === btn)
-      );
+      button.classList.add("active");
+      $(`#tab-${button.dataset.tab}`).classList.add("active");
     });
   });
 
-  document.querySelectorAll("[data-detail]").forEach(btn => {
-    btn.addEventListener("click", () => addDetail(btn.dataset.detail));
-  });
-
-  $("red").addEventListener("input", changeColor);
-  $("green").addEventListener("input", changeColor);
-  $("blue").addEventListener("input", changeColor);
-
-  $("hexColor").addEventListener("input", event => {
-    const value = event.target.value.trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(value)) {
-      updateColorInputs(value);
-    }
-  });
-
-  $("applyColor").addEventListener("click", applyColor);
-
-  $("colorPart").addEventListener("change", () => {
-    updateColorInputs(state.colors[$("colorPart").value]);
-  });
-
-  $("applyPlayer").addEventListener("click", () => {
-    snapshot();
-    state.teamName = $("teamName").value.trim() || "YOUR TEAM";
-    state.playerName = $("playerName").value.trim() || "PLAYER";
-    state.playerNumber = $("playerNumber").value || "97";
-    render();
-    toast("Информация обновлена");
-  });
-
-  $("addPattern").addEventListener("click", () => {
-    state.patternScale = Number($("patternScale").value);
-    state.patternOpacity = Number($("patternOpacity").value);
-    state.patternColor = $("patternColor").value;
-    applyPattern();
-  });
-
-  $("patternScale").addEventListener("input", event => {
-    $("patternScaleValue").textContent = event.target.value;
-  });
-
-  $("patternOpacity").addEventListener("input", event => {
-    $("patternOpacityValue").textContent = event.target.value + "%";
-  });
-
-  $("textSize").addEventListener("input", event => {
-    $("textSizeValue").textContent = event.target.value;
-  });
-
-  $("imageSize").addEventListener("input", event => {
-    $("imageSizeValue").textContent = event.target.value + "%";
-    const layer = state.layers.find(l => l.id === state.selectedLayer);
-    if (layer && layer.type === "image") {
-      layer.scale = Number(event.target.value) / 100;
-      render();
-    }
-  });
-
-  $("addText").addEventListener("click", addText);
-
-  $("imageUpload").addEventListener("change", event => {
-    const file = event.target.files[0];
-    readImage(file, src => addImage(src, file.name));
-    event.target.value = "";
-  });
-
-  $("galleryUpload").addEventListener("change", event => {
-    Array.from(event.target.files).forEach(file => {
-      readImage(file, src => {
-        state.gallery.push({
-          type: "image",
-          src,
-          name: file.name,
-          product: "all"
-        });
-        localStorage.setItem(STORAGE_KEY + "_gallery", JSON.stringify(state.gallery));
-        renderGallery();
-      });
-    });
-    event.target.value = "";
-  });
-
-  $("fontUpload").addEventListener("change", event => {
+  $("#fontUpload").addEventListener("change", event => {
     const file = event.target.files[0];
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast("Шрифт слишком большой");
+      showToast("Шрифт слишком большой. Максимум 5 МБ.");
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
-      const name = "CustomFont" + Date.now();
-      const style = document.createElement("style");
+      state.font = reader.result;
+
+      let style = document.querySelector("#uploadedFontStyle");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "uploadedFontStyle";
+        document.head.appendChild(style);
+      }
+
       style.textContent = `
         @font-face {
-          font-family: "${name}";
-          src: url("${reader.result}");
+          font-family: 'UserJerseyFont';
+          src: url('${reader.result}');
         }
       `;
-      document.head.appendChild(style);
 
-      state.font = name;
-      const option = document.createElement("option");
-      option.value = name;
-      option.textContent = file.name;
-      option.selected = true;
-      $("fontSelect").appendChild(option);
-
-      toast("Шрифт загружен");
+      $("#fontStatus").textContent = `Загружен: ${file.name}`;
       render();
+      showToast("Шрифт загружен");
     };
+    reader.readAsDataURL(file);
+  });
+
+  $("#imageUpload").addEventListener("change", event => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 4 * 1024 * 1024) {
+      showToast("Изображение слишком большое. Максимум 4 МБ.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onload = () => {
+        const ratio = image.height / image.width;
+        const layer = {
+          id: `layer-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          name: file.name,
+          src: reader.result,
+          x: 200,
+          y: 190,
+          size: 18,
+          opacity: 100,
+          ratio: Math.min(Math.max(ratio, .35), 2.5),
+          side: "front"
+        };
+
+        state.layers.push(layer);
+        state.selectedLayer = layer.id;
+        render();
+        showToast("Логотип добавлен на переднюю часть");
+      };
+
+      image.onerror = () => showToast("Не удалось открыть изображение");
+      image.src = reader.result;
+    };
+
     reader.readAsDataURL(file);
     event.target.value = "";
   });
 
-  $("fontSelect").addEventListener("change", event => {
-    state.font = event.target.value;
+  // Перемещение логотипов мышью и пальцем
+  function getSVGPoint(svg, event) {
+    const point = svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return { x: 200, y: 190 };
+
+    const local = point.matrixTransform(matrix.inverse());
+    return { x: local.x, y: local.y };
+  }
+
+  function bindDrag(container) {
+    container.addEventListener("pointerdown", event => {
+      const group = event.target.closest(".layer-image");
+      if (!group) return;
+
+      const layer = state.layers.find(item => item.id === group.dataset.layerId);
+      if (!layer) return;
+
+      state.selectedLayer = layer.id;
+      const svg = group.ownerSVGElement;
+      const point = getSVGPoint(svg, event);
+
+      dragging = {
+        id: layer.id,
+        svg,
+        offsetX: layer.x - point.x,
+        offsetY: layer.y - point.y
+      };
+
+      group.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    });
+
+    container.addEventListener("pointermove", event => {
+      if (!dragging) return;
+
+      const point = getSVGPoint(dragging.svg, event);
+      const layer = state.layers.find(item => item.id === dragging.id);
+      if (!layer) return;
+
+      layer.x = Math.max(35, Math.min(365, point.x + dragging.offsetX));
+      layer.y = Math.max(35, Math.min(350, point.y + dragging.offsetY));
+
+      const group = dragging.svg.querySelector(`[data-layer-id="${dragging.id}"]`);
+      if (group) group.setAttribute("transform", `translate(${layer.x} ${layer.y})`);
+    });
+
+    const stopDrag = () => {
+      if (!dragging) return;
+      dragging = null;
+      render();
+    };
+
+    container.addEventListener("pointerup", stopDrag);
+    container.addEventListener("pointercancel", stopDrag);
+  }
+
+  bindDrag($("#frontJersey"));
+  bindDrag($("#backJersey"));
+
+  $("#layerSize").addEventListener("input", event => {
+    const layer = state.layers.find(item => item.id === state.selectedLayer);
+    if (!layer) return;
+    layer.size = Number(event.target.value);
     render();
   });
 
-  $("layerList").addEventListener("click", event => {
-    const item = event.target.closest("[data-layer]");
-    if (item) selectLayer(item.dataset.layer);
+  $("#layerOpacity").addEventListener("input", event => {
+    const layer = state.layers.find(item => item.id === state.selectedLayer);
+    if (!layer) return;
+    layer.opacity = Number(event.target.value);
+    render();
   });
 
-  $("deleteLayer").addEventListener("click", deleteSelected);
-  $("moveUp").addEventListener("click", () => moveLayer(1));
-  $("moveDown").addEventListener("click", () => moveLayer(-1));
+  $("#deleteLayerBtn").addEventListener("click", () => {
+    if (!state.selectedLayer) {
+      showToast("Сначала выбери слой");
+      return;
+    }
 
-  $("layerX").addEventListener("input", e => changeLayer("x", e.target.value));
-  $("layerY").addEventListener("input", e => changeLayer("y", e.target.value));
-  $("layerSize").addEventListener("input", e => changeLayer("scale", e.target.value));
-  $("layerRotation").addEventListener("input", e => changeLayer("rotation", e.target.value));
-
-  $("saveBtn").addEventListener("click", saveProject);
-  $("exportBtn").addEventListener("click", exportPNG);
-  $("undoBtn").addEventListener("click", undo);
-  $("resetBtn").addEventListener("click", resetDesign);
-
-  $("saveToGallery").addEventListener("click", saveToGallery);
-
-  $("galleryList").addEventListener("click", event => {
-    const button = event.target.closest("[data-gallery-add]");
-    if (button) addGalleryItem(Number(button.dataset.galleryAdd));
+    state.layers = state.layers.filter(layer => layer.id !== state.selectedLayer);
+    state.selectedLayer = null;
+    render();
+    showToast("Слой удалён");
   });
 
-  // Автоматическое сохранение галереи и загрузка проекта
-  try {
-    const gallery = localStorage.getItem(STORAGE_KEY + "_gallery");
-    if (gallery) state.gallery = JSON.parse(gallery);
-  } catch (error) {
-    console.warn("Галерея недоступна", error);
+  $("#frontLayerBtn").addEventListener("click", () => {
+    if (!state.selectedLayer) {
+      showToast("Сначала выбери слой");
+      return;
+    }
+
+    const index = state.layers.findIndex(layer => layer.id === state.selectedLayer);
+    if (index >= 0) {
+      const [layer] = state.layers.splice(index, 1);
+      state.layers.push(layer);
+      render();
+      showToast("Слой перемещён");
+    }
+  });
+
+  function syncInputs() {
+    $("#mainColor").value = state.main;
+    $("#secondaryColor").value = state.secondary;
+    $("#accentColor").value = state.accent;
+    $("#pantsColor").value = state.pants;
+    $("#socksColor").value = state.socks;
+    $("#textColor").value = state.textColor;
+    $("#patternOpacity").value = state.opacity;
+    $("#teamName").value = state.team;
+    $("#playerName").value = state.name;
+    $("#playerNumber").value = state.number;
+    $("#collarStyle").value = state.collar;
+    $("#stripeStyle").value = state.stripes;
+
+    $$(".pattern-option").forEach(button => {
+      button.classList.toggle("selected", button.dataset.pattern === state.pattern);
+    });
+
+    if (state.font) {
+      let style = $("#uploadedFontStyle");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "uploadedFontStyle";
+        document.head.appendChild(style);
+      }
+      style.textContent = `@font-face{font-family:'UserJerseyFont';src:url('${state.font}')}`;
+      $("#fontStatus").textContent = "Пользовательский шрифт загружен";
+    } else {
+      $("#fontStatus").textContent = "";
+    }
   }
 
-  loadProject();
-  render();
-  renderGallery();
-  updateColorInputs(state.colors.body);
+  function saveProject() {
+    try {
+      localStorage.setItem("hockeyJerseyLabProject", JSON.stringify(state));
+      showToast("Проект сохранён");
+    } catch (error) {
+      showToast("Не удалось сохранить. Возможно, изображения слишком большие.");
+    }
+  }
 
+  function loadProject() {
+    try {
+      const saved = localStorage.getItem("hockeyJerseyLabProject");
+      if (!saved) {
+        showToast("Сохранённый проект не найден");
+        return;
+      }
+
+      const parsed = JSON.parse(saved);
+      state = { ...structuredClone(defaults), ...parsed };
+      syncInputs();
+      render();
+      showToast("Проект загружен");
+    } catch (error) {
+      showToast("Ошибка загрузки проекта");
+    }
+  }
+
+  $("#saveBtn").addEventListener("click", saveProject);
+  $("#loadBtn").addEventListener("click", loadProject);
+
+  $("#resetBtn").addEventListener("click", () => {
+    if (!confirm("Сбросить дизайн до исходного состояния?")) return;
+
+    state = structuredClone(defaults);
+    syncInputs();
+    render();
+    showToast("Дизайн сброшен");
+  });
+
+  // PNG export
+  function svgToImage(svgElement) {
+    return new Promise((resolve, reject) => {
+      const clone = svgElement.cloneNode(true);
+      clone.setAttribute("xmlns", NS);
+      clone.setAttribute("width", "800");
+      clone.setAttribute("height", "780");
+
+      const xml = new XMLSerializer().serializeToString(clone);
+      const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const image = new Image();
+
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("SVG render error"));
+      };
+
+      image.src = url;
+    });
+  }
+
+  async function exportPNG() {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1800;
+      canvas.height = 1450;
+
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#f7f7f8";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#171719";
+      ctx.font = "bold 38px Arial";
+      ctx.fillText(state.team || "YOUR TEAM", 900, 75);
+
+      const front = await svgToImage($("#frontJersey svg"));
+      const back = await svgToImage($("#backJersey svg"));
+      const pants = await svgToImage($("#pantsPreview svg"));
+      const socks = await svgToImage($("#socksPreview svg"));
+
+      ctx.drawImage(front, 100, 100, 790, 790);
+      ctx.drawImage(back, 910, 100, 790, 790);
+      ctx.drawImage(pants, 570, 900, 280, 210);
+      ctx.drawImage(socks, 930, 900, 280, 210);
+
+      ctx.fillStyle = "#999";
+      ctx.font = "bold 16px Arial";
+      ctx.fillText("FRONT", 495, 880);
+      ctx.fillText("BACK", 1305, 880);
+      ctx.fillText("HOCKEY JERSEY LAB", 900, 1370);
+
+      const link = document.createElement("a");
+      link.download = "hockey-jersey-design.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+
+      showToast("PNG готов");
+    } catch (error) {
+      console.error(error);
+      showToast("Ошибка экспорта. Попробуй ещё раз.");
+    }
+  }
+
+  $("#exportBtn").addEventListener("click", exportPNG);
+  $("#exportBtnBottom").addEventListener("click", exportPNG);
+
+  // Initial state
+  syncInputs();
+  render();
 })();
