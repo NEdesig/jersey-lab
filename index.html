@@ -1,303 +1,227 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <meta name="theme-color" content="#111116">
-  <meta name="description" content="HOCKEY JERSEY LAB — конструктор хоккейной формы">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f4f5">
   <title>HOCKEY JERSEY LAB</title>
   <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#">
-      <span class="brand-mark">H</span>
+    <a class="brand" href="./">
+      <span class="brand-mark">J</span>
       <span>HOCKEY <b>JERSEY LAB</b></span>
     </a>
     <div class="top-actions">
-      <button class="top-button" id="saveBtn">СОХРАНИТЬ</button>
-      <button class="top-button primary" id="exportBtn">ЭКСПОРТ PNG</button>
+      <button class="top-button" id="saveBtn">Сохранить</button>
+      <button class="export-button" id="exportBtn">Экспорт PNG ↗</button>
     </div>
   </header>
 
-  <main class="workspace">
-    <section class="editor">
-      <div class="editor-heading">
+  <main class="app">
+    <section class="workspace">
+      <div class="workspace-heading">
         <div>
           <div class="eyebrow">CUSTOM UNIFORM DESIGNER</div>
-          <h1>Создай свою форму<span>.</span></h1>
-          <p>Профессиональный конструктор хоккейной экипировки</p>
+          <h1>Создай свою форму.</h1>
+          <p>Настрой каждый элемент хоккейной экипировки.</p>
         </div>
-        <div class="status" id="saveStatus">● НЕ СОХРАНЕНО</div>
+        <div class="view-label"><span class="live-dot"></span> LIVE PREVIEW</div>
       </div>
 
-      <div class="design-area">
-        <div class="canvas-toolbar">
-          <div class="view-switch">
-            <button class="active" data-view="front">СПЕРЕДИ</button>
-            <button data-view="back">СЗАДИ</button>
+      <div class="preview-board" id="previewBoard">
+        <div class="team-label">
+          <span class="team-symbol">✳</span>
+          <span id="teamPreview">YOUR TEAM</span>
+        </div>
+
+        <div class="jersey-pair" id="jerseyPair">
+          <div class="garment-card">
+            <div class="garment-caption">01 / FRONT</div>
+            <div class="garment-svg" id="frontJersey"></div>
           </div>
-          <div class="canvas-actions">
-            <button id="undoBtn" title="Отменить">↶</button>
-            <button id="resetBtn" title="Сбросить">⟲</button>
+          <div class="garment-card">
+            <div class="garment-caption">02 / BACK</div>
+            <div class="garment-svg" id="backJersey"></div>
           </div>
         </div>
 
-        <div class="garment-stage" id="stage">
-          <div class="garment-label" id="garmentLabel">HOME JERSEY / FRONT</div>
-          <svg id="jerseyCanvas" viewBox="0 0 600 680"
-               xmlns="http://www.w3.org/2000/svg"
-               aria-label="Предпросмотр хоккейной формы">
-          </svg>
-          <div class="stage-hint">ПЕРЕТАСКИВАЙ ЭЛЕМЕНТЫ ПАЛЬЦЕМ</div>
+        <div class="bottom-kit">
+          <div class="kit-item">
+            <div class="garment-caption">03 / PANTS</div>
+            <div id="pantsPreview" class="small-garment"></div>
+          </div>
+          <div class="kit-item socks-item">
+            <div class="garment-caption">04 / SOCKS</div>
+            <div id="socksPreview" class="small-garment"></div>
+          </div>
         </div>
 
-        <div class="product-switch">
-          <button class="product active" data-product="jersey">ДЖЕРСИ</button>
-          <button class="product" data-product="pants">ШОРТЫ</button>
-          <button class="product" data-product="socks">ГЕТРЫ</button>
+        <div class="preview-footer">
+          <span>HOCKEY JERSEY LAB</span>
+          <span>DESIGNED BY YOU</span>
         </div>
       </div>
     </section>
 
-    <aside class="control-panel">
-      <div class="panel-title">
+    <aside class="editor">
+      <div class="editor-head">
         <div>
-          <div class="eyebrow">DESIGN SETTINGS</div>
-          <h2>Редактор</h2>
+          <div class="eyebrow">DESIGN STUDIO</div>
+          <h2>Редактор формы</h2>
         </div>
-        <span class="panel-number">01 / 06</span>
+        <button class="reset-button" id="resetBtn" title="Сбросить">↺</button>
       </div>
 
-      <div class="tabs" id="tabs">
-        <button class="tab active" data-tab="model">Форма</button>
-        <button class="tab" data-tab="colors">Цвета</button>
+      <nav class="tabs" aria-label="Разделы редактора">
+        <button class="tab active" data-tab="colors">Цвета</button>
         <button class="tab" data-tab="patterns">Узоры</button>
         <button class="tab" data-tab="details">Детали</button>
         <button class="tab" data-tab="layers">Слои</button>
-        <button class="tab" data-tab="gallery">Галерея</button>
+      </nav>
+
+      <div class="tab-content active" id="tab-colors">
+        <div class="section-title">Основные цвета</div>
+        <div class="color-control">
+          <label for="mainColor">Основной цвет</label>
+          <input type="color" id="mainColor" value="#f47a20">
+        </div>
+        <div class="color-control">
+          <label for="secondaryColor">Дополнительный цвет</label>
+          <input type="color" id="secondaryColor" value="#ffffff">
+        </div>
+        <div class="color-control">
+          <label for="accentColor">Цвет полос</label>
+          <input type="color" id="accentColor" value="#171717">
+        </div>
+        <div class="color-control">
+          <label for="pantsColor">Цвет шорт</label>
+          <input type="color" id="pantsColor" value="#171717">
+        </div>
+        <div class="color-control">
+          <label for="socksColor">Цвет гетр</label>
+          <input type="color" id="socksColor" value="#f47a20">
+        </div>
+
+        <div class="section-title separated">Быстрые палитры</div>
+        <div class="palette-grid">
+          <button class="palette" data-colors="#f47a20,#ffffff,#171717" style="--p1:#f47a20;--p2:#fff;--p3:#171717"></button>
+          <button class="palette" data-colors="#d71920,#ffffff,#111111" style="--p1:#d71920;--p2:#fff;--p3:#111"></button>
+          <button class="palette" data-colors="#003da5,#ffffff,#e6b422" style="--p1:#003da5;--p2:#fff;--p3:#e6b422"></button>
+          <button class="palette" data-colors="#111111,#ffffff,#d4aa38" style="--p1:#111;--p2:#fff;--p3:#d4aa38"></button>
+          <button class="palette" data-colors="#006847,#ffffff,#e5c44d" style="--p1:#006847;--p2:#fff;--p3:#e5c44d"></button>
+          <button class="palette" data-colors="#5b1a82,#ffffff,#e6c4f5" style="--p1:#5b1a82;--p2:#fff;--p3:#e6c4f5"></button>
+          <button class="palette" data-colors="#f4f4f4,#202020,#d71920" style="--p1:#f4f4f4;--p2:#202020;--p3:#d71920"></button>
+          <button class="palette" data-colors="#101f43,#ffffff,#c8102e" style="--p1:#101f43;--p2:#fff;--p3:#c8102e"></button>
+        </div>
       </div>
 
-      <div class="panel-content">
-        <section class="tab-content active" id="tab-model">
-          <h3>Тип формы</h3>
-          <div class="model-grid">
-            <button class="model-card selected" data-model="game">
-              <span class="model-icon">🏒</span>
-              <b>Игровая</b>
-              <small>Командная джерси</small>
-            </button>
-            <button class="model-card" data-model="referee">
-              <span class="model-icon">⚖</span>
-              <b>Судейская</b>
-              <small>Форма арбитра</small>
-            </button>
-          </div>
+      <div class="tab-content" id="tab-patterns">
+        <div class="section-title">Выбери дизайн ткани</div>
+        <p class="hint">Узор применяется к основной части джерси.</p>
+        <div class="pattern-grid">
+          <button class="pattern-option selected" data-pattern="none">
+            <span class="pattern-thumb pattern-none"></span><span>Без узора</span>
+          </button>
+          <button class="pattern-option" data-pattern="stripes">
+            <span class="pattern-thumb pattern-stripes"></span><span>Полосы</span>
+          </button>
+          <button class="pattern-option" data-pattern="diagonal">
+            <span class="pattern-thumb pattern-diagonal"></span><span>Диагональ</span>
+          </button>
+          <button class="pattern-option" data-pattern="chevron">
+            <span class="pattern-thumb pattern-chevron"></span><span>Шеврон</span>
+          </button>
+          <button class="pattern-option" data-pattern="grid">
+            <span class="pattern-thumb pattern-grid"></span><span>Сетка</span>
+          </button>
+          <button class="pattern-option" data-pattern="dots">
+            <span class="pattern-thumb pattern-dots"></span><span>Точки</span>
+          </button>
+          <button class="pattern-option" data-pattern="camo">
+            <span class="pattern-thumb pattern-camo"></span><span>Камуфляж</span>
+          </button>
+          <button class="pattern-option" data-pattern="waves">
+            <span class="pattern-thumb pattern-waves"></span><span>Волны</span>
+          </button>
+        </div>
+        <div class="section-title separated">Интенсивность узора</div>
+        <input type="range" id="patternOpacity" min="5" max="80" value="28">
+        <div class="range-labels"><span>Незаметный</span><span>Яркий</span></div>
+      </div>
 
-          <h3>Ворот</h3>
-          <div class="option-grid">
-            <button class="option selected" data-collar="crew">Круглый</button>
-            <button class="option" data-collar="v">V-образный</button>
-            <button class="option" data-collar="referee">Судейский</button>
-            <button class="option" data-collar="lace">Шнуровка</button>
-          </div>
+      <div class="tab-content" id="tab-details">
+        <div class="section-title">Информация на форме</div>
+        <label class="field-label" for="teamName">Название команды</label>
+        <input class="text-field" id="teamName" maxlength="24" value="YOUR TEAM" placeholder="Название команды">
 
-          <h3>Цветовая схема</h3>
-          <div class="preset-colors">
-            <button class="swatch" style="--swatch:#ffffff" data-preset="white"></button>
-            <button class="swatch" style="--swatch:#101010" data-preset="black"></button>
-            <button class="swatch" style="--swatch:#001d48" data-preset="navy"></button>
-            <button class="swatch" style="--swatch:#d71920" data-preset="red"></button>
-            <button class="swatch" style="--swatch:#f07813" data-preset="orange"></button>
-            <button class="swatch" style="--swatch:#176c3a" data-preset="green"></button>
-            <button class="swatch" style="--swatch:#6534a5" data-preset="purple"></button>
-            <button class="swatch" style="--swatch:#f2c94c" data-preset="yellow"></button>
-          </div>
+        <label class="field-label" for="playerName">Фамилия игрока</label>
+        <input class="text-field" id="playerName" maxlength="18" value="PLAYER" placeholder="Фамилия">
 
-          <div class="field">
-            <label for="teamName">Название команды</label>
-            <input id="teamName" type="text" maxlength="30" placeholder="YOUR TEAM">
-          </div>
-          <div class="field">
-            <label for="playerName">Фамилия игрока</label>
-            <input id="playerName" type="text" maxlength="18" placeholder="PLAYER">
-          </div>
-          <div class="field">
-            <label for="playerNumber">Номер игрока</label>
-            <input id="playerNumber" type="number" min="0" max="99" value="97">
-          </div>
-          <button class="wide-button" id="applyPlayer">ПРИМЕНИТЬ НА ФОРМУ</button>
-        </section>
+        <label class="field-label" for="playerNumber">Номер</label>
+        <input class="text-field" id="playerNumber" type="number" min="0" max="99" value="19">
 
-        <section class="tab-content" id="tab-colors">
-          <h3>Настройка цветов</h3>
-          <div class="field">
-            <label>Выбери зону</label>
-            <select id="colorPart">
-              <option value="body">Корпус</option>
-              <option value="sleeves">Рукава</option>
-              <option value="collar">Ворот</option>
-              <option value="cuffs">Манжеты</option>
-              <option value="hem">Нижний кант</option>
-              <option value="stripes">Полосы</option>
-              <option value="pants">Шорты</option>
-              <option value="socks">Гетры</option>
-            </select>
-          </div>
-          <div class="color-preview" id="colorPreview"></div>
-          <div class="field">
-            <label>Красный <output id="redValue">255</output></label>
-            <input type="range" id="red" min="0" max="255" value="255">
-          </div>
-          <div class="field">
-            <label>Зелёный <output id="greenValue">255</output></label>
-            <input type="range" id="green" min="0" max="255" value="255">
-          </div>
-          <div class="field">
-            <label>Синий <output id="blueValue">255</output></label>
-            <input type="range" id="blue" min="0" max="255" value="255">
-          </div>
-          <div class="field">
-            <label for="hexColor">HEX</label>
-            <input type="text" id="hexColor" value="#FFFFFF" maxlength="7">
-          </div>
-          <button class="wide-button" id="applyColor">ПРИМЕНИТЬ ЦВЕТ</button>
-        </section>
+        <label class="field-label" for="textColor">Цвет надписей</label>
+        <input type="color" id="textColor" value="#ffffff">
 
-        <section class="tab-content" id="tab-patterns">
-          <h3>Готовые паттерны</h3>
-          <div class="pattern-grid">
-            <button class="pattern-card" data-pattern="none"><span>○</span><b>Без узора</b></button>
-            <button class="pattern-card" data-pattern="stripes"><span>▥</span><b>Полосы</b></button>
-            <button class="pattern-card" data-pattern="vertical"><span>▤</span><b>Вертикали</b></button>
-            <button class="pattern-card" data-pattern="chevron"><span>⌁</span><b>Шевроны</b></button>
-            <button class="pattern-card" data-pattern="dots"><span>⠿</span><b>Точки</b></button>
-            <button class="pattern-card" data-pattern="checker"><span>▦</span><b>Шахматка</b></button>
-            <button class="pattern-card" data-pattern="diagonal"><span>▨</span><b>Диагональ</b></button>
-            <button class="pattern-card" data-pattern="referee"><span>▥</span><b>Судейские</b></button>
-          </div>
+        <label class="field-label" for="fontUpload">Свой шрифт фамилии и номера</label>
+        <label class="upload-box" for="fontUpload">
+          <span>＋</span>
+          <span>Загрузить файл шрифта (.ttf, .otf, .woff)</span>
+        </label>
+        <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2" hidden>
+        <div id="fontStatus" class="upload-status"></div>
 
-          <h3>Параметры узора</h3>
-          <div class="field">
-            <label>Масштаб <output id="patternScaleValue">30</output></label>
-            <input type="range" id="patternScale" min="8" max="100" value="30">
-          </div>
-          <div class="field">
-            <label>Прозрачность <output id="patternOpacityValue">35%</output></label>
-            <input type="range" id="patternOpacity" min="0" max="100" value="35">
-          </div>
-          <div class="field">
-            <label>Цвет узора</label>
-            <input type="color" id="patternColor" value="#000000">
-          </div>
-          <button class="wide-button" id="addPattern">ДОБАВИТЬ УЗОР</button>
-          <p class="note">Узоры можно накладывать друг на друга и менять их цвета.</p>
-        </section>
+        <div class="section-title separated">Ворот и полосы</div>
+        <label class="field-label" for="collarStyle">Стиль ворота</label>
+        <select class="text-field" id="collarStyle">
+          <option value="v">V-образный</option>
+          <option value="round">Круглый</option>
+          <option value="lace">Со шнуровкой</option>
+        </select>
+        <label class="field-label" for="stripeStyle">Полосы на рукавах и поясе</label>
+        <select class="text-field" id="stripeStyle">
+          <option value="classic">Классические</option>
+          <option value="double">Двойные</option>
+          <option value="single">Одна полоса</option>
+          <option value="none">Без полос</option>
+        </select>
+      </div>
 
-        <section class="tab-content" id="tab-details">
-          <h3>Элементы формы</h3>
-          <div class="detail-grid">
-            <button data-detail="stripe">Полоса</button>
-            <button data-detail="shoulder">Плечевые полосы</button>
-            <button data-detail="armband">Нарукавная повязка</button>
-            <button data-detail="pocket">Карман судьи</button>
-            <button data-detail="star">Звезда</button>
-            <button data-detail="circle">Круг</button>
-            <button data-detail="shield">Щит</button>
-            <button data-detail="line">Линия</button>
-          </div>
+      <div class="tab-content" id="tab-layers">
+        <div class="section-title">Логотипы и спонсоры</div>
+        <p class="hint">Добавь изображение, затем перетаскивай его по форме пальцем или мышью.</p>
+        <label class="upload-box large-upload" for="imageUpload">
+          <span>＋</span>
+          <b>Загрузить логотип</b>
+          <small>PNG, JPG, SVG, WEBP</small>
+        </label>
+        <input type="file" id="imageUpload" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
+        <div id="layerList" class="layer-list">
+          <div class="empty-layers">Пока нет загруженных слоёв</div>
+        </div>
+        <div class="layer-tools">
+          <button class="secondary-button" id="deleteLayerBtn">Удалить выбранный</button>
+          <button class="secondary-button" id="frontLayerBtn">На передний план</button>
+        </div>
+        <div class="section-title separated">Положение выбранного слоя</div>
+        <label class="field-label" for="layerSize">Размер</label>
+        <input type="range" id="layerSize" min="5" max="45" value="18">
+        <label class="field-label" for="layerOpacity">Прозрачность</label>
+        <input type="range" id="layerOpacity" min="10" max="100" value="100">
+        <div class="hint">Выбери слой в списке, чтобы изменить его размер или прозрачность.</div>
+      </div>
 
-          <h3>Текст и номера</h3>
-          <div class="field">
-            <label for="customText">Текст</label>
-            <input id="customText" type="text" maxlength="30" placeholder="YOUR TEXT">
-          </div>
-          <div class="field">
-            <label for="textSize">Размер <output id="textSizeValue">42</output></label>
-            <input type="range" id="textSize" min="12" max="110" value="42">
-          </div>
-          <div class="field">
-            <label for="fontSelect">Шрифт</label>
-            <select id="fontSelect">
-              <option value="Stapel, Arial, sans-serif">Stapel / Arial</option>
-              <option value="Arial, sans-serif">Arial</option>
-              <option value="Impact, sans-serif">Impact</option>
-              <option value="Georgia, serif">Georgia</option>
-            </select>
-          </div>
-          <div class="upload-box">
-            <label for="fontUpload">ЗАГРУЗИТЬ СВОЙ ШРИФТ</label>
-            <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2">
-          </div>
-          <button class="wide-button" id="addText">ДОБАВИТЬ ТЕКСТ</button>
-
-          <h3>Логотипы и спонсоры</h3>
-          <div class="upload-box">
-            <label for="imageUpload">+ ЗАГРУЗИТЬ ЛОГОТИП / СПОНСОРА</label>
-            <input type="file" id="imageUpload" accept="image/png,image/jpeg,image/webp,image/svg+xml">
-          </div>
-          <div class="field">
-            <label for="imageSize">Размер изображения <output id="imageSizeValue">100%</output></label>
-            <input type="range" id="imageSize" min="20" max="250" value="100">
-          </div>
-        </section>
-
-        <section class="tab-content" id="tab-layers">
-          <div class="layer-heading">
-            <h3>Слои дизайна</h3>
-            <button id="deleteLayer" class="danger-button">УДАЛИТЬ</button>
-          </div>
-          <div id="layerList" class="layer-list">
-            <div class="empty-state">Пока нет дополнительных слоёв</div>
-          </div>
-          <div class="field">
-            <label>Положение по горизонтали</label>
-            <input id="layerX" type="range" min="0" max="600" value="300">
-          </div>
-          <div class="field">
-            <label>Положение по вертикали</label>
-            <input id="layerY" type="range" min="0" max="680" value="300">
-          </div>
-          <div class="field">
-            <label>Масштаб</label>
-            <input id="layerSize" type="range" min="10" max="300" value="100">
-          </div>
-          <div class="field">
-            <label>Поворот</label>
-            <input id="layerRotation" type="range" min="-180" max="180" value="0">
-          </div>
-          <div class="layer-actions">
-            <button id="moveUp">НАВЕРХ ↑</button>
-            <button id="moveDown">ВНИЗ ↓</button>
-          </div>
-        </section>
-
-        <section class="tab-content" id="tab-gallery">
-          <h3>Моя галерея</h3>
-          <p class="note">Сохраняй элементы, которые хочешь использовать повторно.</p>
-          <button class="wide-button" id="saveToGallery">СОХРАНИТЬ В ГАЛЕРЕЮ</button>
-          <div id="galleryList" class="gallery-list">
-            <div class="empty-state">Галерея пока пуста</div>
-          </div>
-          <h3>Загрузка элементов</h3>
-          <div class="upload-box">
-            <label for="galleryUpload">+ ДОБАВИТЬ ИЗОБРАЖЕНИЕ</label>
-            <input type="file" id="galleryUpload" accept="image/*" multiple>
-          </div>
-        </section>
+      <div class="editor-bottom">
+        <button class="secondary-button full-width" id="loadBtn">Загрузить сохранённый проект</button>
+        <button class="primary-button full-width" id="exportBtnBottom">Скачать дизайн PNG</button>
+        <p class="footnote">Твой дизайн сохраняется в этом браузере.</p>
       </div>
     </aside>
   </main>
 
-  <footer class="bottom-info">
-    <span>HOCKEY JERSEY LAB</span>
-    <span>DESIGNED FOR THE GAME.</span>
-    <span>VERSION 1.0</span>
-  </footer>
-
   <div class="toast" id="toast"></div>
-
   <script src="./js/app.js"></script>
 </body>
 </html>
