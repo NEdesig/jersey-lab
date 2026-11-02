@@ -1,0 +1,318 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111116">
+  <title>JERSEY LAB — Конструктор хоккейной формы</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#">
+    <span class="brand-mark">JL</span>
+    JERSEY<span class="muted">LAB</span>
+  </a>
+  <div class="top-actions">
+    <button class="icon-btn" id="undoBtn" title="Отменить">↶</button>
+    <button class="icon-btn" id="redoBtn" title="Повторить">↷</button>
+    <button class="icon-btn" id="resetBtn" title="Сбросить">⟲</button>
+    <button class="primary-btn desktop-save" id="savePngBtn">Скачать PNG ↓</button>
+  </div>
+</header>
+
+<main class="app-shell">
+
+  <section class="workspace">
+    <div class="workspace-head">
+      <div>
+        <div class="eyebrow">ONLINE JERSEY DESIGNER</div>
+        <h1>Создай свою форму<span>.</span></h1>
+        <p>Твоя команда. Твой стиль. Твой дизайн.</p>
+      </div>
+
+      <div class="view-switch">
+        <button class="active" data-view="front">Перед</button>
+        <button data-view="back">Спина</button>
+      </div>
+    </div>
+
+    <div class="stage-wrap">
+      <div class="stage-toolbar">
+        <div class="product-tabs">
+          <button class="active" data-product="jersey">Джерси</button>
+          <button data-product="shorts">Шорты</button>
+          <button data-product="socks">Гетры</button>
+        </div>
+
+        <div class="stage-tools">
+          <button class="small-tool" id="gridBtn" title="Сетка">▦</button>
+          <button class="small-tool" id="centerBtn" title="Центр">⊙</button>
+          <button class="small-tool" id="zoomOut">−</button>
+          <button class="small-tool" id="zoomIn">+</button>
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="garment-holder" id="garmentHolder"></div>
+        <div class="stage-hint">Перетаскивай элементы пальцем или мышью</div>
+      </div>
+
+      <div class="stage-foot">
+        <span id="viewLabel">ДЖЕРСИ / ПЕРЕД</span>
+        <span>2D PREVIEW</span>
+      </div>
+    </div>
+
+    <button class="primary-btn mobile-save" id="mobileSaveBtn">
+      Скачать форму PNG ↓
+    </button>
+  </section>
+
+  <aside class="editor">
+
+    <div class="editor-title">
+      <div>
+        <div class="eyebrow">DESIGN WORKSPACE</div>
+        <h2>Редактор</h2>
+      </div>
+      <span class="live-dot">● LIVE</span>
+    </div>
+
+    <div class="editor-scroll">
+
+      <!-- ЦВЕТА -->
+      <section class="panel-section">
+        <div class="section-heading">
+          <h3>Цвета формы</h3>
+          <span class="section-note">COLORS</span>
+        </div>
+
+        <div class="color-targets">
+          <button class="color-target active" data-color="body">
+            <i></i>Корпус
+          </button>
+          <button class="color-target" data-color="sleeves">
+            <i></i>Рукава
+          </button>
+          <button class="color-target" data-color="collar">
+            <i></i>Ворот
+          </button>
+          <button class="color-target" data-color="cuffs">
+            <i></i>Манжеты
+          </button>
+          <button class="color-target" data-color="hem">
+            <i></i>Низ
+          </button>
+          <button class="color-target" data-color="shorts">
+            <i></i>Шорты
+          </button>
+          <button class="color-target" data-color="socks">
+            <i></i>Гетры
+          </button>
+        </div>
+
+        <div class="color-editor">
+          <div class="color-preview-row">
+            <div>
+              <strong id="colorName">Корпус</strong>
+              <small id="colorHex">#FFFFFF</small>
+            </div>
+            <input type="color" id="nativeColor" value="#ffffff">
+          </div>
+
+          <label class="range-label">Красный <output id="rOut">255</output></label>
+          <input type="range" id="redRange" min="0" max="255" value="255">
+
+          <label class="range-label">Зелёный <output id="gOut">255</output></label>
+          <input type="range" id="greenRange" min="0" max="255" value="255">
+
+          <label class="range-label">Синий <output id="bOut">255</output></label>
+          <input type="range" id="blueRange" min="0" max="255" value="255">
+        </div>
+
+        <div class="presets">
+          <button style="--swatch:#ffffff" data-value="#ffffff"></button>
+          <button style="--swatch:#071d3b" data-value="#071d3b"></button>
+          <button style="--swatch:#f2a900" data-value="#f2a900"></button>
+          <button style="--swatch:#d9272e" data-value="#d9272e"></button>
+          <button style="--swatch:#16834a" data-value="#16834a"></button>
+          <button style="--swatch:#17171c" data-value="#17171c"></button>
+          <button style="--swatch:#6541a5" data-value="#6541a5"></button>
+          <button style="--swatch:#777e8b" data-value="#777e8b"></button>
+        </div>
+      </section>
+
+      <!-- УЗОРЫ -->
+      <section class="panel-section">
+        <div class="section-heading">
+          <h3>Узоры и паттерны</h3>
+          <span class="section-note">PATTERNS</span>
+        </div>
+
+        <div class="pattern-grid">
+          <button class="pattern-card active" data-pattern="clean">
+            <span class="pattern-preview clean"></span>Чистый
+          </button>
+          <button class="pattern-card" data-pattern="vertical">
+            <span class="pattern-preview vertical"></span>Вертикаль
+          </button>
+          <button class="pattern-card" data-pattern="horizontal">
+            <span class="pattern-preview horizontal"></span>Полосы
+          </button>
+          <button class="pattern-card" data-pattern="chevron">
+            <span class="pattern-preview chevron"></span>Шеврон
+          </button>
+          <button class="pattern-card" data-pattern="diagonal">
+            <span class="pattern-preview diagonal"></span>Диагональ
+          </button>
+          <button class="pattern-card" data-pattern="gradient">
+            <span class="pattern-preview gradient"></span>Градиент
+          </button>
+        </div>
+
+        <div class="inline-controls">
+          <label>Цвет <input type="color" id="patternColor" value="#f2a900"></label>
+          <label>Толщина <input type="range" id="patternWidth" min="4" max="32" value="14"></label>
+        </div>
+
+        <button class="outline-btn full" id="addPatternBtn">
+          ＋ Добавить узор как слой
+        </button>
+      </section>
+
+      <!-- ТЕКСТ -->
+      <section class="panel-section">
+        <div class="section-heading">
+          <h3>Фамилия и номера</h3>
+          <span class="section-note">TYPOGRAPHY</span>
+        </div>
+
+        <div class="field">
+          <label>Название команды / спонсор</label>
+          <input id="teamName" type="text" placeholder="YOUR TEAM" maxlength="24">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Фамилия</label>
+            <input id="playerName" type="text" placeholder="PLAYER" maxlength="16">
+          </div>
+          <div class="field">
+            <label>Номер</label>
+            <input id="playerNumber" type="number" min="0" max="99" value="97">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Цвет текста</label>
+            <input type="color" id="textColor" value="#ffffff">
+          </div>
+          <div class="field">
+            <label>Обводка</label>
+            <input type="color" id="outlineColor" value="#111827">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Свой шрифт (.ttf / .otf / .woff)</label>
+          <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2">
+        </div>
+
+        <button class="outline-btn full" id="addTextBtn">
+          ＋ Добавить надписи на форму
+        </button>
+      </section>
+
+      <!-- ЛОГОТИПЫ -->
+      <section class="panel-section">
+        <div class="section-heading">
+          <h3>Логотипы и детали</h3>
+          <span class="section-note">ELEMENTS</span>
+        </div>
+
+        <div class="upload-grid">
+          <label class="upload-tile">
+            <span>＋</span>
+            <b>Логотип</b>
+            <small>PNG / SVG / JPG</small>
+            <input type="file" id="logoUpload" accept="image/*">
+          </label>
+
+          <label class="upload-tile">
+            <span>＋</span>
+            <b>Спонсор</b>
+            <small>PNG / SVG / JPG</small>
+            <input type="file" id="sponsorUpload" accept="image/*">
+          </label>
+        </div>
+
+        <div class="shape-row">
+          <button class="shape-btn active" data-shape="star">☆<small>Звезда</small></button>
+          <button class="shape-btn" data-shape="circle">●<small>Круг</small></button>
+          <button class="shape-btn" data-shape="shield">⬟<small>Щит</small></button>
+          <button class="shape-btn" data-shape="stripe">▰<small>Полоса</small></button>
+        </div>
+
+        <button class="outline-btn full" id="addShapeBtn">
+          ＋ Добавить фигуру
+        </button>
+      </section>
+
+      <!-- СЛОИ -->
+      <section class="panel-section">
+        <div class="section-heading">
+          <h3>Слои дизайна</h3>
+          <span class="section-note">LAYERS</span>
+        </div>
+
+        <div class="layers-list" id="layersList">
+          <div class="empty-layers">Пока нет дополнительных слоёв</div>
+        </div>
+
+        <div class="layer-actions">
+          <button class="outline-btn" id="bringFrontBtn">На передний план</button>
+          <button class="outline-btn danger" id="deleteLayerBtn">Удалить</button>
+        </div>
+      </section>
+
+      <!-- ГАЛЕРЕЯ -->
+      <section class="panel-section">
+        <div class="section-heading">
+          <h3>Моя галерея</h3>
+          <span class="section-note">MY ELEMENTS</span>
+        </div>
+
+        <p class="help-text">
+          Сохраняй свои элементы и используй их в других дизайнах.
+        </p>
+
+        <button class="outline-btn full" id="saveElementBtn">
+          ＋ Сохранить выбранный слой в галерею
+        </button>
+
+        <div class="gallery-grid" id="galleryGrid">
+          <div class="empty-layers">Галерея пока пуста</div>
+        </div>
+      </section>
+
+    </div>
+
+    <footer class="editor-footer">
+      <button class="primary-btn full" id="saveProjectBtn">
+        Сохранить проект
+      </button>
+      <small>Сохранение на этом устройстве</small>
+    </footer>
+
+  </aside>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
